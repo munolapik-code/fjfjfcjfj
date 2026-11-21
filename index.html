@@ -21,7 +21,6 @@
       padding: 20px;
     }
 
-    /* Темы экрана */
     body.status-alarm {
       background: radial-gradient(circle at center, #e74c3c 0%, #96281b 100%);
     }
@@ -29,7 +28,6 @@
       background: radial-gradient(circle at center, #2ecc71 0%, #1e8449 100%);
     }
 
-    /* Центральная карточка */
     .card {
       background: rgba(0, 0, 0, 0.25);
       backdrop-filter: blur(12px);
@@ -63,7 +61,6 @@
       text-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
-    /* Плавная пульсация при тревоге */
     body.status-alarm h1 {
       animation: pulse 1.8s infinite;
     }
@@ -105,7 +102,7 @@
   <div class="footer">
     <span id="time-text">Підключення до сервера...</span>
     <span>•</span>
-    <span>Джерело: <a href="https://neptun.in.ua" target="_blank">NEPTUN</a></span>
+    <span>Дані: <a href="https://neptun.in.ua" target="_blank">Карта повітряних тривог — NEPTUN</a></span>
   </div>
 
   <script>
@@ -115,22 +112,28 @@
       const timeEl = document.getElementById('time-text');
 
       try {
-        const response = await fetch('https://neptun.in.ua');
+        const response = await fetch('https://neptun.in.ua/api/v1/alerts');
         if (!response.ok) throw new Error('Помилка мережі');
         
         const data = await response.json();
 
-        // Проверяем активную тревогу в Винницком районе или всей Винницкой области
-        const isRaion = (data.raions || []).some(r => r.name === 'Вінницький район');
-        const isOblast = (data.oblasts || []).some(o => o.name === 'Вінницька область');
+        // Перевіряємо наявність Вінницького району або всієї Вінницької області в списку активних тривог
+        const isRaionAlarm = Array.isArray(data.raions) && data.raions.some(
+          r => r.key === 'vinnytska:vinnytskyi' || (r.name && r.name.includes('Вінницький'))
+        );
+        const isOblastAlarm = Array.isArray(data.oblasts) && data.oblasts.some(
+          o => o.key === 'vinnytska' || (o.name && o.name.includes('Вінницька'))
+        );
 
-        if (isRaion || isOblast) {
+        const isAlarm = isRaionAlarm || isOblastAlarm;
+
+        if (isAlarm) {
           document.body.className = 'status-alarm';
-          badgeEl.textContent = 'УВАГА! ЗАГРОЗА';
+          badgeEl.textContent = 'УВАГА! НЕБЕЗПЕКА';
           statusEl.textContent = 'ТРИВОГА';
         } else {
           document.body.className = 'status-clear';
-          badgeEl.textContent = 'БЕЗПЕЧНО';
+          badgeEl.textContent = 'СИТУАЦІЯ СПОКІЙНА';
           statusEl.textContent = 'ВІДБІЙ';
         }
 
@@ -138,15 +141,14 @@
         timeEl.textContent = `Оновлено о ${now}`;
 
       } catch (error) {
-        console.error(error);
-        timeEl.textContent = 'Помилка зв’язку. Наступна спроба через 15 сек...';
+        console.error('Помилка отримання даних:', error);
+        badgeEl.textContent = 'ПОМИЛКА З\'ЄДНАННЯ';
+        timeEl.textContent = 'Не вдалося оновити дані. Повтор через 15 сек...';
       }
     }
 
-    // Запуск сразу при открытии и обновление каждые 15 секунд
     updateStatus();
     setInterval(updateStatus, 15000);
   </script>
-
 </body>
 </html>
